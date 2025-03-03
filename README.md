@@ -13,24 +13,18 @@ npx cap sync
 
 <docgen-index>
 
-* [`echo(...)`](#echo)
+* [`generateAndShare()`](#generateandshare)
 
 </docgen-index>
 
 <docgen-api>
 <!--Update the source file JSDoc comments and rerun docgen to update the docs below-->
 
-### echo(...)
+### generateAndShare()
 
 ```typescript
-echo(options: { value: string; }) => Promise<{ value: string; }>
+generateAndShare() => Promise<void>
 ```
-
-| Param         | Type                            |
-| ------------- | ------------------------------- |
-| **`options`** | <code>{ value: string; }</code> |
-
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
 
 --------------------
 

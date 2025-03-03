@@ -7,6 +7,7 @@ export default {
       name: 'capacitorPdfShare',
       globals: {
         '@capacitor/core': 'capacitorExports',
+        'html2pdf.js': 'html2pdf'
       },
       sourcemap: true,
       inlineDynamicImports: true,
@@ -18,5 +19,5 @@ export default {
       inlineDynamicImports: true,
     },
   ],
-  external: ['@capacitor/core'],
+  external: ['html2pdf.js'],
 };

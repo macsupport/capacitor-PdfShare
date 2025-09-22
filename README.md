@@ -167,11 +167,12 @@ Share an existing PDF file
 
 #### PdfShareResult
 
-| Prop          | Type                 | Description                          |
-| ------------- | -------------------- | ------------------------------------ |
-| **`success`** | <code>boolean</code> | Whether the operation was successful |
-| **`path`**    | <code>string</code>  | File path or URL (web only)          |
-| **`error`**   | <code>string</code>  | Error message if operation failed    |
+| Prop          | Type                 | Description                                      |
+| ------------- | -------------------- | ------------------------------------------------ |
+| **`success`** | <code>boolean</code> | Whether the operation was successful             |
+| **`path`**    | <code>string</code>  | File path or URL (web only)                      |
+| **`error`**   | <code>string</code>  | Error message if operation failed                |
+| **`message`** | <code>string</code>  | Success message with details about the operation |
 
 
 #### PdfShareOptions

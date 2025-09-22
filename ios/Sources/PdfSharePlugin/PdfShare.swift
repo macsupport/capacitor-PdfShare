@@ -127,9 +127,11 @@ class PdfShare {
             pageSize = CGSize(width: pageSize.height, height: pageSize.width)
         }
 
-        let printableRect = pageSize.insetBy(
-            dx: options.margins.left + options.margins.right,
-            dy: options.margins.top + options.margins.bottom
+        let printableRect = CGRect(
+            x: options.margins.left,
+            y: options.margins.top,
+            width: pageSize.width - (options.margins.left + options.margins.right),
+            height: pageSize.height - (options.margins.top + options.margins.bottom)
         )
 
         renderer.setValue(NSValue(cgRect: CGRect(origin: .zero, size: pageSize)), forKey: "paperRect")

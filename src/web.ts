@@ -82,12 +82,30 @@ export class PdfShareWeb extends WebPlugin {
       const html2pdfOptions = this.createHtml2PdfOptions(validatedOptions);
       console.log('📄 Generating PDF with options:', html2pdfOptions);
 
-      await html2pdf().set(html2pdfOptions).from(element).save();
+      // Generate and download PDF
+      const pdfInstance = html2pdf().set(html2pdfOptions).from(element);
 
-      console.log('✅ PDF generated and downloaded successfully');
+      // Create a download link and trigger it
+      const pdfBlob = await pdfInstance.outputPdf('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+
+      // Create and trigger download
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = `${validatedOptions.filename}.pdf`;
+      downloadLink.style.display = 'none';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      // Clean up blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+      console.log('✅ PDF generated and download triggered');
       return {
         success: true,
-        path: `${validatedOptions.filename}.pdf`
+        path: `Downloads/${validatedOptions.filename}.pdf`,
+        message: `PDF download triggered: "${validatedOptions.filename}.pdf"`
       };
 
     } catch (error) {

@@ -65,6 +65,11 @@ export interface PdfShareResult {
    * Error message if operation failed
    */
   error?: string;
+
+  /**
+   * Success message with details about the operation
+   */
+  message?: string;
 }
 
 export enum PdfShareError {

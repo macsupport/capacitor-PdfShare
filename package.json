@@ -1,7 +1,7 @@
 {
   "name": "capacitor-plugin-pdfshare",
-  "version": "0.0.1",
-  "description": "Plugin to share PDF's in Print dialog",
+  "version": "1.0.0",
+  "description": "Advanced Capacitor plugin for generating and sharing PDFs from WebView content with comprehensive options and cross-platform support",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
@@ -27,7 +27,17 @@
   "keywords": [
     "capacitor",
     "plugin",
-    "native"
+    "native",
+    "pdf",
+    "share",
+    "webview",
+    "print",
+    "export",
+    "document",
+    "cross-platform",
+    "ios",
+    "android",
+    "web"
   ],
   "scripts": {
     "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",
@@ -54,17 +64,15 @@
     "@ionic/prettier-config": "^4.0.0",
     "@ionic/swiftlint-config": "^2.0.0",
     "eslint": "^8.57.0",
-    "html2pdf.js": "^0.9.0",
     "prettier": "^3.4.2",
     "prettier-plugin-java": "^2.6.6",
     "rimraf": "^6.0.1",
     "rollup": "^4.30.1",
     "swiftlint": "^2.0.0",
-    "typescript": "~4.1.5"
+    "typescript": "~5.3.0"
   },
   "peerDependencies": {
-    "@capacitor/core": ">=7.0.0",
-    "html2pdf.js": "^0.9.0"
+    "@capacitor/core": ">=7.0.0"
   },
   "prettier": "@ionic/prettier-config",
   "swiftlint": "@ionic/swiftlint-config",
@@ -80,13 +88,10 @@
     }
   },
   "dependencies": {
-    "@capacitor/cli": "^7.0.1",
-    "build": "^0.1.4",
+    "html2pdf.js": "^0.10.2"
+  },
+  "optionalDependencies": {
     "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.9.0",
-    "jspdf": "^3.0.0",
-    "npm": "^11.1.0",
-    "pdfmake": "^0.2.7",
-    "run": "^1.5.0"
+    "jspdf": "^2.5.2"
   }
 }

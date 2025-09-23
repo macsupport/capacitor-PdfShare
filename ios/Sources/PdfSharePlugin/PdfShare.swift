@@ -265,43 +265,16 @@ class PdfShare {
             if (!printStyles.trim()) {
                 console.log('⚠️ iOS: No print styles found, adding VetDrugs defaults');
                 printStyles = `
-                    /* VetDrugs PDF Print Styles */
+                    /* Minimal PDF fallback - let app-min.css handle styling */
                     body {
                         background: white !important;
                         color: black !important;
                         font-family: Arial, sans-serif !important;
-                        font-size: 10pt !important;
-                        line-height: 1.2 !important;
                         margin: 0 !important;
                         padding: 15px !important;
                     }
 
-                    .card {
-                        margin: 3px 0 !important;
-                        padding: 6px !important;
-                        border: 1px solid #ddd !important;
-                        font-size: 9pt !important;
-                        page-break-inside: avoid !important;
-                    }
-
-                    .card-content {
-                        padding: 4px !important;
-                        margin: 0 !important;
-                    }
-
-                    h1, h2, h3, h4 {
-                        font-size: 11pt !important;
-                        font-weight: bold !important;
-                        margin: 0 0 4px 0 !important;
-                        padding: 0 !important;
-                    }
-
-                    .dosage-info, .concentration-info, .drug-details {
-                        font-size: 9pt !important;
-                        line-height: 1.1 !important;
-                        margin: 2px 0 !important;
-                    }
-
+                    /* Hide navigation and UI elements */
                     .navbar, .toolbar, .searchbar, .tab-link,
                     .floating-button, .back-button, .hidden-print,
                     .no-print, button:not(.print-button),
@@ -309,6 +282,7 @@ class PdfShare {
                         display: none !important;
                     }
 
+                    /* Dark mode overrides */
                     .dark\\\\:bg-gray-800, .dark\\\\:bg-gray-700, .dark\\\\:bg-slate-900 {
                         background-color: white !important;
                     }

@@ -269,47 +269,20 @@ public class PdfSharePlugin extends Plugin {
             "    }\n" +
             "}\n" +
             "\n" +
-            "// Add VetDrugs-specific print defaults if no styles found\n" +
+            "// Add minimal fallback if no styles found\n" +
             "if (!printStyles.trim()) {\n" +
-            "    console.log('⚠️ Android: No print styles found, adding VetDrugs defaults');\n" +
+            "    console.log('⚠️ Android: No print styles found, adding minimal defaults');\n" +
             "    printStyles = `\n" +
-            "        /* VetDrugs PDF Print Styles */\n" +
+            "        /* Minimal PDF fallback - let app-min.css handle styling */\n" +
             "        body {\n" +
             "            background: white !important;\n" +
             "            color: black !important;\n" +
             "            font-family: Arial, sans-serif !important;\n" +
-            "            font-size: 10pt !important;\n" +
-            "            line-height: 1.2 !important;\n" +
             "            margin: 0 !important;\n" +
             "            padding: 15px !important;\n" +
             "        }\n" +
             "\n" +
-            "        .card {\n" +
-            "            margin: 3px 0 !important;\n" +
-            "            padding: 6px !important;\n" +
-            "            border: 1px solid #ddd !important;\n" +
-            "            font-size: 9pt !important;\n" +
-            "            page-break-inside: avoid !important;\n" +
-            "        }\n" +
-            "\n" +
-            "        .card-content {\n" +
-            "            padding: 4px !important;\n" +
-            "            margin: 0 !important;\n" +
-            "        }\n" +
-            "\n" +
-            "        h1, h2, h3, h4 {\n" +
-            "            font-size: 11pt !important;\n" +
-            "            font-weight: bold !important;\n" +
-            "            margin: 0 0 4px 0 !important;\n" +
-            "            padding: 0 !important;\n" +
-            "        }\n" +
-            "\n" +
-            "        .dosage-info, .concentration-info, .drug-details {\n" +
-            "            font-size: 9pt !important;\n" +
-            "            line-height: 1.1 !important;\n" +
-            "            margin: 2px 0 !important;\n" +
-            "        }\n" +
-            "\n" +
+            "        /* Hide navigation and UI elements */\n" +
             "        .navbar, .toolbar, .searchbar, .tab-link,\n" +
             "        .floating-button, .back-button, .hidden-print,\n" +
             "        .no-print, button:not(.print-button),\n" +
@@ -317,6 +290,7 @@ public class PdfSharePlugin extends Plugin {
             "            display: none !important;\n" +
             "        }\n" +
             "\n" +
+            "        /* Dark mode overrides */\n" +
             "        .dark\\\\:bg-gray-800, .dark\\\\:bg-gray-700, .dark\\\\:bg-slate-900 {\n" +
             "            background-color: white !important;\n" +
             "        }\n" +

@@ -430,48 +430,7 @@ export class PdfShareWeb extends WebPlugin {
         padding: 15px !important;
       }
 
-      /* VetDrugs specific drug card styling */
-      .card {
-        margin: 3px 0 !important;
-        padding: 6px !important;
-        border: 1px solid #ddd !important;
-        font-size: 9pt !important;
-        page-break-inside: avoid !important;
-      }
-
-      .card-content {
-        padding: 4px !important;
-        margin: 0 !important;
-      }
-
-      /* Drug headers and names */
-      .card h1, .card h2, .card h3, .card h4 {
-        font-size: 11pt !important;
-        font-weight: bold !important;
-        margin: 0 0 4px 0 !important;
-        padding: 0 !important;
-      }
-
-      /* Dosage and concentration info */
-      .dosage-info, .concentration-info, .drug-details {
-        font-size: 9pt !important;
-        line-height: 1.1 !important;
-        margin: 2px 0 !important;
-      }
-
-      /* Table-like layout for drug information */
-      .drug-row, .dosage-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        margin: 1px 0 !important;
-        font-size: 9pt !important;
-      }
-
-      .drug-column {
-        flex: 1 !important;
-        padding: 0 2px !important;
-        font-size: 9pt !important;
-      }
+      /* Minimal fallback - only essential print setup */
 
       /* Hide navigation and UI elements */
       .navbar, .toolbar, .searchbar, .tab-link,
@@ -517,31 +476,11 @@ export class PdfShareWeb extends WebPlugin {
     return `
       /* TailwindCSS Print Utilities */
 
-      /* VetDrugs Specific Fixes */
+      /* Minimal body setup - let app-min.css handle specifics */
       body {
-        font-size: 10pt !important;
-        line-height: 1.2 !important;
         font-family: Arial, sans-serif !important;
-      }
-
-      /* Table styling for drug cards */
-      .card, .card-content {
-        margin: 2px !important;
-        padding: 4px !important;
-        font-size: 9pt !important;
-      }
-
-      /* Drug name headers */
-      h1, h2, h3, h4, h5, h6 {
-        font-size: 11pt !important;
-        margin: 2px 0 !important;
-        font-weight: bold !important;
-      }
-
-      /* Dosage information styling */
-      .dosage-info, .drug-info {
-        font-size: 9pt !important;
-        line-height: 1.1 !important;
+        background: white !important;
+        color: black !important;
       }
 
       /* Display utilities */

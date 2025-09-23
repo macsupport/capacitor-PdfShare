@@ -53,6 +53,9 @@ public class PdfSharePlugin extends Plugin {
 
                 Log.d(TAG, "📄 Generating PDF: " + pdfFile.getAbsolutePath());
 
+                // Inject print styles before generating PDF
+                injectPrintStyles(webView);
+
                 // Create PDF document
                 PdfDocument document = new PdfDocument();
 
@@ -138,6 +141,9 @@ public class PdfSharePlugin extends Plugin {
                 String uniqueFilename = PdfShare.generateFileName(filename);
                 File pdfFile = new File(context.getCacheDir(), uniqueFilename);
 
+                // Inject print styles before generating PDF
+                injectPrintStyles(webView);
+
                 // Same PDF generation logic as above
                 PdfDocument document = new PdfDocument();
 
@@ -204,5 +210,154 @@ public class PdfSharePlugin extends Plugin {
         }
 
         PdfShare.shareFile(pdfFile, getContext(), call);
+    }
+
+    /**
+     * Inject print styles into WebView for PDF generation
+     */
+    private void injectPrintStyles(WebView webView) {
+        Log.d(TAG, "📋 Android: Injecting print styles for PDF generation");
+
+        String printStylesJS =
+            "// Remove existing print styles injection if any\n" +
+            "const existingPrintStyles = document.getElementById('pdf-print-styles');\n" +
+            "if (existingPrintStyles) {\n" +
+            "    existingPrintStyles.remove();\n" +
+            "}\n" +
+            "\n" +
+            "// Create style element for print styles\n" +
+            "const printStyleElement = document.createElement('style');\n" +
+            "printStyleElement.id = 'pdf-print-styles';\n" +
+            "printStyleElement.setAttribute('type', 'text/css');\n" +
+            "\n" +
+            "// Extract print styles from app-min.css and tailwind.css\n" +
+            "let printStyles = '';\n" +
+            "\n" +
+            "// Get all stylesheets\n" +
+            "const stylesheets = Array.from(document.styleSheets);\n" +
+            "console.log('📄 Android: Found ' + stylesheets.length + ' stylesheets');\n" +
+            "\n" +
+            "for (const stylesheet of stylesheets) {\n" +
+            "    try {\n" +
+            "        const href = stylesheet.href ? new URL(stylesheet.href).pathname : 'inline';\n" +
+            "\n" +
+            "        // Only process app-min.css and tailwind.css\n" +
+            "        if (href.includes('app-min.css') || href.includes('tailwind.css') || !stylesheet.href) {\n" +
+            "            console.log('📄 Android: Processing stylesheet: ' + href);\n" +
+            "\n" +
+            "            const rules = stylesheet.cssRules || stylesheet.rules;\n" +
+            "            if (rules) {\n" +
+            "                for (let i = 0; i < rules.length; i++) {\n" +
+            "                    const rule = rules[i];\n" +
+            "\n" +
+            "                    // Extract @media print rules\n" +
+            "                    if (rule.type === CSSRule.MEDIA_RULE && rule.media.mediaText.includes('print')) {\n" +
+            "                        console.log('🎯 Android: Found print media rule in ' + href);\n" +
+            "\n" +
+            "                        // Remove @media print wrapper and apply styles directly\n" +
+            "                        const innerCSS = rule.cssText\n" +
+            "                            .replace(/@media[^{]+\\{/, '')\n" +
+            "                            .replace(/\\}$/, '');\n" +
+            "\n" +
+            "                        printStyles += '/* From ' + href + ' */\\n' + innerCSS + '\\n\\n';\n" +
+            "                    }\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "    } catch (e) {\n" +
+            "        console.log('❌ Android: Skipping stylesheet due to CORS: ' + e);\n" +
+            "    }\n" +
+            "}\n" +
+            "\n" +
+            "// Add VetDrugs-specific print defaults if no styles found\n" +
+            "if (!printStyles.trim()) {\n" +
+            "    console.log('⚠️ Android: No print styles found, adding VetDrugs defaults');\n" +
+            "    printStyles = `\n" +
+            "        /* VetDrugs PDF Print Styles */\n" +
+            "        body {\n" +
+            "            background: white !important;\n" +
+            "            color: black !important;\n" +
+            "            font-family: Arial, sans-serif !important;\n" +
+            "            font-size: 10pt !important;\n" +
+            "            line-height: 1.2 !important;\n" +
+            "            margin: 0 !important;\n" +
+            "            padding: 15px !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        .card {\n" +
+            "            margin: 3px 0 !important;\n" +
+            "            padding: 6px !important;\n" +
+            "            border: 1px solid #ddd !important;\n" +
+            "            font-size: 9pt !important;\n" +
+            "            page-break-inside: avoid !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        .card-content {\n" +
+            "            padding: 4px !important;\n" +
+            "            margin: 0 !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        h1, h2, h3, h4 {\n" +
+            "            font-size: 11pt !important;\n" +
+            "            font-weight: bold !important;\n" +
+            "            margin: 0 0 4px 0 !important;\n" +
+            "            padding: 0 !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        .dosage-info, .concentration-info, .drug-details {\n" +
+            "            font-size: 9pt !important;\n" +
+            "            line-height: 1.1 !important;\n" +
+            "            margin: 2px 0 !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        .navbar, .toolbar, .searchbar, .tab-link,\n" +
+            "        .floating-button, .back-button, .hidden-print,\n" +
+            "        .no-print, button:not(.print-button),\n" +
+            "        .btn:not(.print-button) {\n" +
+            "            display: none !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        .dark\\\\:bg-gray-800, .dark\\\\:bg-gray-700, .dark\\\\:bg-slate-900 {\n" +
+            "            background-color: white !important;\n" +
+            "        }\n" +
+            "\n" +
+            "        .dark\\\\:text-white, .dark\\\\:text-gray-300 {\n" +
+            "            color: black !important;\n" +
+            "        }\n" +
+            "    `;\n" +
+            "}\n" +
+            "\n" +
+            "// Apply the print styles\n" +
+            "printStyleElement.textContent = printStyles;\n" +
+            "document.head.appendChild(printStyleElement);\n" +
+            "\n" +
+            "// Hide elements that shouldn't be in print\n" +
+            "const hideSelectors = [\n" +
+            "    '.navbar', '.toolbar', '.searchbar', '.tab-link',\n" +
+            "    '.floating-button', '.back-button', '.no-print',\n" +
+            "    'button:not(.print-button)', '.btn:not(.print-button)'\n" +
+            "];\n" +
+            "\n" +
+            "hideSelectors.forEach(selector => {\n" +
+            "    const elements = document.querySelectorAll(selector);\n" +
+            "    elements.forEach(el => {\n" +
+            "        el.style.display = 'none';\n" +
+            "    });\n" +
+            "});\n" +
+            "\n" +
+            "// Apply print-friendly body styling\n" +
+            "document.body.style.backgroundColor = '#ffffff';\n" +
+            "document.body.style.color = '#000000';\n" +
+            "document.body.style.fontFamily = 'Arial, sans-serif';\n" +
+            "\n" +
+            "console.log('✅ Android: Print styles applied successfully');\n";
+
+        webView.evaluateJavascript(printStylesJS, result -> {
+            if (result != null) {
+                Log.d(TAG, "✅ Android: Print styles injected successfully");
+            } else {
+                Log.e(TAG, "❌ Android: Error injecting print styles");
+            }
+        });
     }
 }

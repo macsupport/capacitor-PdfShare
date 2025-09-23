@@ -106,6 +106,9 @@ class PdfShare {
         // Clean up old files first
         cleanupOldFiles()
 
+        // Inject print styles before generating PDF
+        injectPrintStyles(into: webView)
+
         // Get the formatter from webview
         let printFormatter = webView.viewPrintFormatter()
 
@@ -200,6 +203,154 @@ class PdfShare {
         viewController.present(activityViewController, animated: true) {
             print("✅ iOS: Share sheet presented successfully")
             completion?()
+        }
+    }
+
+    /// Inject print styles into WebView for PDF generation
+    private static func injectPrintStyles(into webView: WKWebView) {
+        print("📋 iOS: Injecting print styles for PDF generation")
+
+        let printStylesCSS = """
+            // Remove existing print styles injection if any
+            const existingPrintStyles = document.getElementById('pdf-print-styles');
+            if (existingPrintStyles) {
+                existingPrintStyles.remove();
+            }
+
+            // Create style element for print styles
+            const printStyleElement = document.createElement('style');
+            printStyleElement.id = 'pdf-print-styles';
+            printStyleElement.setAttribute('type', 'text/css');
+
+            // Extract print styles from app-min.css and tailwind.css
+            let printStyles = '';
+
+            // Get all stylesheets
+            const stylesheets = Array.from(document.styleSheets);
+            console.log('📄 iOS: Found ' + stylesheets.length + ' stylesheets');
+
+            for (const stylesheet of stylesheets) {
+                try {
+                    const href = stylesheet.href ? new URL(stylesheet.href).pathname : 'inline';
+
+                    // Only process app-min.css and tailwind.css
+                    if (href.includes('app-min.css') || href.includes('tailwind.css') || !stylesheet.href) {
+                        console.log('📄 iOS: Processing stylesheet: ' + href);
+
+                        const rules = stylesheet.cssRules || stylesheet.rules;
+                        if (rules) {
+                            for (let i = 0; i < rules.length; i++) {
+                                const rule = rules[i];
+
+                                // Extract @media print rules
+                                if (rule.type === CSSRule.MEDIA_RULE && rule.media.mediaText.includes('print')) {
+                                    console.log('🎯 iOS: Found print media rule in ' + href);
+
+                                    // Remove @media print wrapper and apply styles directly
+                                    const innerCSS = rule.cssText
+                                        .replace(/@media[^{]+\\{/, '')
+                                        .replace(/\\}$/, '');
+
+                                    printStyles += '/* From ' + href + ' */\\n' + innerCSS + '\\n\\n';
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log('❌ iOS: Skipping stylesheet due to CORS: ' + e);
+                }
+            }
+
+            // Add VetDrugs-specific print defaults if no styles found
+            if (!printStyles.trim()) {
+                console.log('⚠️ iOS: No print styles found, adding VetDrugs defaults');
+                printStyles = `
+                    /* VetDrugs PDF Print Styles */
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-family: Arial, sans-serif !important;
+                        font-size: 10pt !important;
+                        line-height: 1.2 !important;
+                        margin: 0 !important;
+                        padding: 15px !important;
+                    }
+
+                    .card {
+                        margin: 3px 0 !important;
+                        padding: 6px !important;
+                        border: 1px solid #ddd !important;
+                        font-size: 9pt !important;
+                        page-break-inside: avoid !important;
+                    }
+
+                    .card-content {
+                        padding: 4px !important;
+                        margin: 0 !important;
+                    }
+
+                    h1, h2, h3, h4 {
+                        font-size: 11pt !important;
+                        font-weight: bold !important;
+                        margin: 0 0 4px 0 !important;
+                        padding: 0 !important;
+                    }
+
+                    .dosage-info, .concentration-info, .drug-details {
+                        font-size: 9pt !important;
+                        line-height: 1.1 !important;
+                        margin: 2px 0 !important;
+                    }
+
+                    .navbar, .toolbar, .searchbar, .tab-link,
+                    .floating-button, .back-button, .hidden-print,
+                    .no-print, button:not(.print-button),
+                    .btn:not(.print-button) {
+                        display: none !important;
+                    }
+
+                    .dark\\\\:bg-gray-800, .dark\\\\:bg-gray-700, .dark\\\\:bg-slate-900 {
+                        background-color: white !important;
+                    }
+
+                    .dark\\\\:text-white, .dark\\\\:text-gray-300 {
+                        color: black !important;
+                    }
+                `;
+            }
+
+            // Apply the print styles
+            printStyleElement.textContent = printStyles;
+            document.head.appendChild(printStyleElement);
+
+            // Hide elements that shouldn't be in print
+            const hideSelectors = [
+                '.navbar', '.toolbar', '.searchbar', '.tab-link',
+                '.floating-button', '.back-button', '.no-print',
+                'button:not(.print-button)', '.btn:not(.print-button)'
+            ];
+
+            hideSelectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(el => {
+                    el.style.display = 'none';
+                });
+            });
+
+            // Apply print-friendly body styling
+            document.body.style.backgroundColor = '#ffffff';
+            document.body.style.color = '#000000';
+            document.body.style.fontFamily = 'Arial, sans-serif';
+
+            console.log('✅ iOS: Print styles applied successfully');
+        """
+
+        webView.evaluateJavaScript(printStylesCSS) { (result, error) in
+            if let error = error {
+                print("❌ iOS: Error injecting print styles: \(error)")
+            } else {
+                print("✅ iOS: Print styles injected successfully")
+            }
         }
     }
 

@@ -4,6 +4,8 @@ import html2pdf from 'html2pdf.js';
 import type { PdfShareOptions, PdfShareResult } from './definitions';
 
 export class PdfShareWeb extends WebPlugin {
+  private originalElementStates: Map<Element, { display: string; visibility: string }> = new Map();
+
   constructor() {
     super();
   }
@@ -68,15 +70,74 @@ export class PdfShareWeb extends WebPlugin {
     };
   }
 
+  /**
+   * Save the original state of elements that might be hidden
+   */
+  private saveElementStates(): void {
+    try {
+      this.originalElementStates.clear();
+
+      const selectorsToSave = [
+        '.navbar', '.toolbar', '.searchbar', '.tab-link',
+        '.floating-button', '.back-button', '.hidden-print',
+        '.no-print', '.fab', '.panel', '.actions-button',
+        '.popup', '.framework7-modals', '.page', '.page-content',
+        '.view', '.views'
+      ];
+
+      selectorsToSave.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+          const htmlElement = element as HTMLElement;
+          this.originalElementStates.set(element, {
+            display: htmlElement.style.display || '',
+            visibility: htmlElement.style.visibility || ''
+          });
+        });
+      });
+
+      console.log(`💾 Saved state for ${this.originalElementStates.size} elements`);
+    } catch (error) {
+      console.warn('⚠️ Failed to save element states:', error);
+    }
+  }
+
+  /**
+   * Restore the original state of elements after PDF generation
+   */
+  private restoreElementStates(): void {
+    try {
+      let restoredCount = 0;
+
+      this.originalElementStates.forEach((originalState, element) => {
+        const htmlElement = element as HTMLElement;
+        if (htmlElement && htmlElement.style) {
+          htmlElement.style.display = originalState.display;
+          htmlElement.style.visibility = originalState.visibility;
+          restoredCount++;
+        }
+      });
+
+      console.log(`🔄 Restored state for ${restoredCount} elements`);
+      this.originalElementStates.clear();
+    } catch (error) {
+      console.warn('⚠️ Failed to restore element states:', error);
+    }
+  }
+
   async generateAndShare(options?: PdfShareOptions): Promise<PdfShareResult> {
     try {
       console.log('🔧 Web: Starting PDF generation with options:', options);
+
+      // Save element states before starting PDF generation
+      this.saveElementStates();
 
       const validatedOptions = this.getValidatedOptions(options);
       const element = document.getElementById(validatedOptions.elementId);
 
       if (!element) {
         console.error(`❌ Element with ID '${validatedOptions.elementId}' not found`);
+        this.restoreElementStates(); // Restore states on error
         return {
           success: false,
           error: `Element with ID '${validatedOptions.elementId}' not found`
@@ -151,6 +212,7 @@ export class PdfShareWeb extends WebPlugin {
 
       if (downloadSuccess) {
         console.log(`✅ PDF download successful using ${downloadMethod}`);
+        this.restoreElementStates(); // Restore states on success
         return {
           success: true,
           path: `Downloads/${validatedOptions.filename}.pdf`,
@@ -159,6 +221,7 @@ export class PdfShareWeb extends WebPlugin {
       } else {
         console.log('❌ All download methods failed, returning blob URL');
         const blobUrl = URL.createObjectURL(pdfBlob);
+        this.restoreElementStates(); // Restore states on partial success
         return {
           success: true,
           path: blobUrl,
@@ -168,6 +231,7 @@ export class PdfShareWeb extends WebPlugin {
 
     } catch (error) {
       console.error('❌ Error generating PDF:', error);
+      this.restoreElementStates(); // Restore states on error
       return {
         success: false,
         error: `PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -179,10 +243,14 @@ export class PdfShareWeb extends WebPlugin {
     try {
       console.log('🔧 Web: Generating PDF without download');
 
+      // Save element states before starting PDF generation
+      this.saveElementStates();
+
       const validatedOptions = this.getValidatedOptions(options);
       const element = document.getElementById(validatedOptions.elementId);
 
       if (!element) {
+        this.restoreElementStates(); // Restore states on error
         return {
           success: false,
           error: `Element with ID '${validatedOptions.elementId}' not found`
@@ -196,6 +264,7 @@ export class PdfShareWeb extends WebPlugin {
       const blobUrl = URL.createObjectURL(pdfBlob);
 
       console.log('✅ PDF blob generated:', blobUrl);
+      this.restoreElementStates(); // Restore states on success
       return {
         success: true,
         path: blobUrl
@@ -203,6 +272,7 @@ export class PdfShareWeb extends WebPlugin {
 
     } catch (error) {
       console.error('❌ Error generating PDF blob:', error);
+      this.restoreElementStates(); // Restore states on error
       return {
         success: false,
         error: `PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -310,8 +380,8 @@ export class PdfShareWeb extends WebPlugin {
         try {
           const href = stylesheet.href ? new URL(stylesheet.href).pathname : 'inline';
 
-          // Only process app-min.css and tailwind.css
-          if (href.includes('app-min.css') || href.includes('tailwind.css') || !stylesheet.href) {
+          // Process app-specific CSS files that contain print styles
+          if (href.includes('app-min.css') || href.includes('tailwind.css') || href.includes('print.css') || href.includes('app.css') || href.includes('styles.css') || !stylesheet.href) {
             console.log(`📄 Processing stylesheet: ${href}`);
 
             // Access CSS rules
@@ -430,13 +500,30 @@ export class PdfShareWeb extends WebPlugin {
         padding: 15px !important;
       }
 
-      /* Minimal fallback - only essential print setup */
+      /* CRITICAL: Framework7 Page Visibility Fixes */
+      .page,
+      .page-content,
+      .view,
+      .views {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        display: block !important;
+        position: static !important;
+      }
+
+      /* Ensure app content remains visible */
+      .page-current {
+        background-color: white !important;
+        display: block !important;
+      }
 
       /* Hide navigation and UI elements */
       .navbar, .toolbar, .searchbar, .tab-link,
       .floating-button, .back-button, .hidden-print,
       .no-print, button:not(.print-button),
-      .btn:not(.print-button) {
+      .btn:not(.print-button), .fab, .panel,
+      .actions-button, .popup, .framework7-modals {
         display: none !important;
       }
 
@@ -458,6 +545,12 @@ export class PdfShareWeb extends WebPlugin {
       table {
         page-break-inside: avoid;
         border-collapse: collapse;
+      }
+
+      /* Drug layout preservation */
+      .eachdrug.commonDrug {
+        page-break-inside: avoid;
+        overflow: hidden;
       }
 
       /* Print color support */

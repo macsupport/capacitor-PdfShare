@@ -164,9 +164,17 @@ class PdfShare {
             try pdfData.write(to: fileURL, options: .atomic)
             print("✅ iOS: PDF saved successfully to: \(fileURL.path)")
             print("📊 iOS: PDF size: \(pdfData.length) bytes")
+
+            // Automatically restore page styles after PDF generation
+            restorePageAfterPDF(webView: webView)
+
             return fileURL
         } catch {
             print("❌ iOS: Error saving PDF: \(error)")
+
+            // Always restore page styles even on error
+            restorePageAfterPDF(webView: webView)
+
             return nil
         }
     }
@@ -208,115 +216,51 @@ class PdfShare {
 
     /// Inject print styles into WebView for PDF generation
     private static func injectPrintStyles(into webView: WKWebView) {
-        print("📋 iOS: Injecting print styles for PDF generation")
+        print("📋 iOS: Preparing page for PDF generation (preserving existing styles)")
 
         let printStylesCSS = """
-            // Remove existing print styles injection if any
-            const existingPrintStyles = document.getElementById('pdf-print-styles');
-            if (existingPrintStyles) {
-                existingPrintStyles.remove();
-            }
+            console.log('📄 iOS: Preparing page for PDF generation');
 
-            // Create style element for print styles
-            const printStyleElement = document.createElement('style');
-            printStyleElement.id = 'pdf-print-styles';
-            printStyleElement.setAttribute('type', 'text/css');
+            // Simply hide elements marked with .hidden-print class
+            // This respects the app's existing print CSS without overriding styles
+            const elementsToHide = document.querySelectorAll('.hidden-print');
+            console.log('📄 iOS: Found ' + elementsToHide.length + ' elements to hide for PDF');
 
-            // Extract print styles from app-min.css and tailwind.css
-            let printStyles = '';
-
-            // Get all stylesheets
-            const stylesheets = Array.from(document.styleSheets);
-            console.log('📄 iOS: Found ' + stylesheets.length + ' stylesheets');
-
-            for (const stylesheet of stylesheets) {
-                try {
-                    const href = stylesheet.href ? new URL(stylesheet.href).pathname : 'inline';
-
-                    // Only process app-min.css and tailwind.css
-                    if (href.includes('app-min.css') || href.includes('tailwind.css') || !stylesheet.href) {
-                        console.log('📄 iOS: Processing stylesheet: ' + href);
-
-                        const rules = stylesheet.cssRules || stylesheet.rules;
-                        if (rules) {
-                            for (let i = 0; i < rules.length; i++) {
-                                const rule = rules[i];
-
-                                // Extract @media print rules
-                                if (rule.type === CSSRule.MEDIA_RULE && rule.media.mediaText.includes('print')) {
-                                    console.log('🎯 iOS: Found print media rule in ' + href);
-
-                                    // Remove @media print wrapper and apply styles directly
-                                    const innerCSS = rule.cssText
-                                        .replace(/@media[^{]+\\{/, '')
-                                        .replace(/\\}$/, '');
-
-                                    printStyles += '/* From ' + href + ' */\\n' + innerCSS + '\\n\\n';
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.log('❌ iOS: Skipping stylesheet due to CORS: ' + e);
-                }
-            }
-
-            // Add VetDrugs-specific print defaults if no styles found
-            if (!printStyles.trim()) {
-                console.log('⚠️ iOS: No print styles found, adding VetDrugs defaults');
-                printStyles = `
-                    /* Minimal PDF fallback - let app-min.css handle styling */
-                    body {
-                        background: white !important;
-                        color: black !important;
-                        font-family: Arial, sans-serif !important;
-                        margin: 0 !important;
-                        padding: 15px !important;
-                    }
-
-                    /* Hide navigation and UI elements */
-                    .navbar, .toolbar, .searchbar, .tab-link,
-                    .floating-button, .back-button, .hidden-print,
-                    .no-print, button:not(.print-button),
-                    .btn:not(.print-button) {
-                        display: none !important;
-                    }
-
-                    /* Dark mode overrides */
-                    .dark\\\\:bg-gray-800, .dark\\\\:bg-gray-700, .dark\\\\:bg-slate-900 {
-                        background-color: white !important;
-                    }
-
-                    .dark\\\\:text-white, .dark\\\\:text-gray-300 {
-                        color: black !important;
-                    }
-                `;
-            }
-
-            // Apply the print styles
-            printStyleElement.textContent = printStyles;
-            document.head.appendChild(printStyleElement);
-
-            // Hide elements that shouldn't be in print
-            const hideSelectors = [
-                '.navbar', '.toolbar', '.searchbar', '.tab-link',
-                '.floating-button', '.back-button', '.no-print',
-                'button:not(.print-button)', '.btn:not(.print-button)'
-            ];
-
-            hideSelectors.forEach(selector => {
-                const elements = document.querySelectorAll(selector);
-                elements.forEach(el => {
-                    el.style.display = 'none';
-                });
+            elementsToHide.forEach((el, index) => {
+                console.log('📄 iOS: Hiding element ' + (index + 1) + ':', el.tagName, el.className);
+                el.style.setProperty('display', 'none', 'important');
             });
 
-            // Apply print-friendly body styling
-            document.body.style.backgroundColor = '#ffffff';
-            document.body.style.color = '#000000';
-            document.body.style.fontFamily = 'Arial, sans-serif';
+            // Ensure body is visible and properly styled for PDF
+            if (document.body) {
+                // Only apply minimal styling if body is completely hidden
+                const bodyStyle = window.getComputedStyle(document.body);
+                if (bodyStyle.display === 'none' || bodyStyle.visibility === 'hidden') {
+                    console.log('⚠️ iOS: Body was hidden, making it visible for PDF');
+                    document.body.style.setProperty('display', 'block', 'important');
+                    document.body.style.setProperty('visibility', 'visible', 'important');
+                }
 
-            console.log('✅ iOS: Print styles applied successfully');
+                // Ensure content is visible with basic print-friendly styling
+                document.body.style.setProperty('background-color', '#ffffff', 'important');
+                document.body.style.setProperty('color', '#000000', 'important');
+
+                console.log('✅ iOS: Body styling applied for PDF generation');
+            }
+
+            // Force any dark mode elements to be visible in PDF
+            const darkElements = document.querySelectorAll('[class*="dark:"], .dark');
+            darkElements.forEach(el => {
+                const computedStyle = window.getComputedStyle(el);
+                if (computedStyle.color === 'rgb(255, 255, 255)' || computedStyle.color === 'white') {
+                    el.style.setProperty('color', '#000000', 'important');
+                }
+                if (computedStyle.backgroundColor === 'rgb(0, 0, 0)' || computedStyle.backgroundColor.includes('gray')) {
+                    el.style.setProperty('background-color', '#ffffff', 'important');
+                }
+            });
+
+            console.log('✅ iOS: Page prepared for PDF generation - existing styles preserved');
         """
 
         webView.evaluateJavaScript(printStylesCSS) { (result, error) in
@@ -359,6 +303,57 @@ class PdfShare {
 
         } catch {
             print("⚠️ iOS: Error cleaning up old files: \(error)")
+        }
+    }
+    /// Restore page to normal view after PDF generation
+    static func restorePageAfterPDF(webView: WKWebView) {
+        print("🔄 iOS: Restoring page after PDF generation")
+
+        let restoreJS = """
+            console.log('🔄 iOS: Restoring page after PDF generation');
+
+            // Restore .hidden-print elements to visible
+            const hiddenPrintElements = document.querySelectorAll('.hidden-print');
+            console.log('🔄 iOS: Restoring ' + hiddenPrintElements.length + ' .hidden-print elements');
+            hiddenPrintElements.forEach((el, index) => {
+                el.style.removeProperty('display');
+                console.log('🔄 iOS: Restored element ' + (index + 1) + ':', el.tagName, el.className);
+            });
+
+            // Remove PDF-specific inline styles that were added
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(el => {
+                // Only remove styles that we specifically added during PDF generation
+                const style = el.style;
+
+                // Remove forced white background if it was added for PDF
+                if (style.backgroundColor === 'rgb(255, 255, 255)' && style.getPropertyPriority('background-color') === 'important') {
+                    el.style.removeProperty('background-color');
+                }
+
+                // Remove forced black text if it was added for PDF
+                if (style.color === 'rgb(0, 0, 0)' && style.getPropertyPriority('color') === 'important') {
+                    el.style.removeProperty('color');
+                }
+
+                // Remove forced display/visibility if it was added for PDF
+                if (style.getPropertyPriority('display') === 'important') {
+                    el.style.removeProperty('display');
+                }
+                if (style.getPropertyPriority('visibility') === 'important') {
+                    el.style.removeProperty('visibility');
+                }
+            });
+
+            console.log('✅ iOS: Page styles restored successfully');
+        """
+
+        webView.evaluateJavaScript(restoreJS) { (result, error) in
+            if let error = error {
+                print("❌ iOS: Error restoring page: \(error)")
+            } else {
+                print("✅ iOS: Page styles restored successfully")
+            }
         }
     }
 }

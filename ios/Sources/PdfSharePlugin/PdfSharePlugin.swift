@@ -88,4 +88,20 @@ public class PdfSharePlugin: CAPPlugin {
             }
         }
     }
+
+    @objc func restorePageAfterPDF(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            print("🔄 iOS: Restoring page after PDF generation")
+
+            guard let webView = self.webView else {
+                call.reject("WebView not found")
+                return
+            }
+
+            PdfShare.restorePageAfterPDF(webView: webView)
+
+            let result: [String: Any] = ["success": true]
+            call.resolve(result)
+        }
+    }
 }

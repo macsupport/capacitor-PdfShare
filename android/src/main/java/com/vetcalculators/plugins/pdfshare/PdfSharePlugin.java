@@ -31,6 +31,7 @@ public class PdfSharePlugin extends Plugin {
         PdfShare.cleanupOldFiles(getContext());
 
         new Handler(Looper.getMainLooper()).post(() -> {
+            WebView webView = null;
             try {
                 Log.d(TAG, "🔧 Android: Starting PDF generation");
 
@@ -39,7 +40,7 @@ public class PdfSharePlugin extends Plugin {
                 String filename = options.optString("filename", "veterinary-dosage");
                 String title = options.optString("title", "Veterinary Dosage");
 
-                WebView webView = bridge.getWebView();
+                webView = bridge.getWebView();
                 Context context = getContext();
 
                 if (webView == null) {
@@ -112,8 +113,13 @@ public class PdfSharePlugin extends Plugin {
                 // Share the file
                 PdfShare.shareFile(pdfFile, context, call);
 
+                // Automatically restore page after PDF generation
+                restorePageStyles(webView);
+
             } catch (Exception e) {
                 Log.e(TAG, "❌ Error generating PDF", e);
+                // Always restore page styles even on error
+                restorePageStyles(webView);
                 call.reject("Error generating PDF: " + e.getMessage());
             }
         });
@@ -124,13 +130,14 @@ public class PdfSharePlugin extends Plugin {
         call.setKeepAlive(true);
 
         new Handler(Looper.getMainLooper()).post(() -> {
+            WebView webView = null;
             try {
                 Log.d(TAG, "🔧 Android: Generating PDF without sharing");
 
                 JSObject options = call.getData();
                 String filename = options.optString("filename", "veterinary-dosage");
 
-                WebView webView = bridge.getWebView();
+                webView = bridge.getWebView();
                 Context context = getContext();
 
                 if (webView == null) {
@@ -181,13 +188,19 @@ public class PdfSharePlugin extends Plugin {
                     call.resolve(ret);
 
                 } catch (IOException e) {
+                    // Restore page styles even on IO error
+                    restorePageStyles(webView);
                     call.reject("Error writing PDF: " + e.getMessage());
                 } finally {
                     document.close();
+                    // Always restore page styles when done
+                    restorePageStyles(webView);
                 }
 
             } catch (Exception e) {
                 Log.e(TAG, "❌ Error generating PDF", e);
+                // Always restore page styles even on error
+                restorePageStyles(webView);
                 call.reject("Error generating PDF: " + e.getMessage());
             }
         });
@@ -213,118 +226,54 @@ public class PdfSharePlugin extends Plugin {
     }
 
     /**
-     * Inject print styles into WebView for PDF generation
+     * Prepare page for PDF generation without overriding existing styles
      */
     private void injectPrintStyles(WebView webView) {
-        Log.d(TAG, "📋 Android: Injecting print styles for PDF generation");
+        Log.d(TAG, "📋 Android: Preparing page for PDF generation (preserving existing styles)");
 
         String printStylesJS =
-            "// Remove existing print styles injection if any\n" +
-            "const existingPrintStyles = document.getElementById('pdf-print-styles');\n" +
-            "if (existingPrintStyles) {\n" +
-            "    existingPrintStyles.remove();\n" +
-            "}\n" +
+            "console.log('📄 Android: Preparing page for PDF generation');\n" +
             "\n" +
-            "// Create style element for print styles\n" +
-            "const printStyleElement = document.createElement('style');\n" +
-            "printStyleElement.id = 'pdf-print-styles';\n" +
-            "printStyleElement.setAttribute('type', 'text/css');\n" +
+            "// Simply hide elements marked with .hidden-print class\n" +
+            "// This respects the app's existing print CSS without overriding styles\n" +
+            "const elementsToHide = document.querySelectorAll('.hidden-print');\n" +
+            "console.log('📄 Android: Found ' + elementsToHide.length + ' elements to hide for PDF');\n" +
             "\n" +
-            "// Extract print styles from app-min.css and tailwind.css\n" +
-            "let printStyles = '';\n" +
-            "\n" +
-            "// Get all stylesheets\n" +
-            "const stylesheets = Array.from(document.styleSheets);\n" +
-            "console.log('📄 Android: Found ' + stylesheets.length + ' stylesheets');\n" +
-            "\n" +
-            "for (const stylesheet of stylesheets) {\n" +
-            "    try {\n" +
-            "        const href = stylesheet.href ? new URL(stylesheet.href).pathname : 'inline';\n" +
-            "\n" +
-            "        // Only process app-min.css and tailwind.css\n" +
-            "        if (href.includes('app-min.css') || href.includes('tailwind.css') || !stylesheet.href) {\n" +
-            "            console.log('📄 Android: Processing stylesheet: ' + href);\n" +
-            "\n" +
-            "            const rules = stylesheet.cssRules || stylesheet.rules;\n" +
-            "            if (rules) {\n" +
-            "                for (let i = 0; i < rules.length; i++) {\n" +
-            "                    const rule = rules[i];\n" +
-            "\n" +
-            "                    // Extract @media print rules\n" +
-            "                    if (rule.type === CSSRule.MEDIA_RULE && rule.media.mediaText.includes('print')) {\n" +
-            "                        console.log('🎯 Android: Found print media rule in ' + href);\n" +
-            "\n" +
-            "                        // Remove @media print wrapper and apply styles directly\n" +
-            "                        const innerCSS = rule.cssText\n" +
-            "                            .replace(/@media[^{]+\\{/, '')\n" +
-            "                            .replace(/\\}$/, '');\n" +
-            "\n" +
-            "                        printStyles += '/* From ' + href + ' */\\n' + innerCSS + '\\n\\n';\n" +
-            "                    }\n" +
-            "                }\n" +
-            "            }\n" +
-            "        }\n" +
-            "    } catch (e) {\n" +
-            "        console.log('❌ Android: Skipping stylesheet due to CORS: ' + e);\n" +
-            "    }\n" +
-            "}\n" +
-            "\n" +
-            "// Add minimal fallback if no styles found\n" +
-            "if (!printStyles.trim()) {\n" +
-            "    console.log('⚠️ Android: No print styles found, adding minimal defaults');\n" +
-            "    printStyles = `\n" +
-            "        /* Minimal PDF fallback - let app-min.css handle styling */\n" +
-            "        body {\n" +
-            "            background: white !important;\n" +
-            "            color: black !important;\n" +
-            "            font-family: Arial, sans-serif !important;\n" +
-            "            margin: 0 !important;\n" +
-            "            padding: 15px !important;\n" +
-            "        }\n" +
-            "\n" +
-            "        /* Hide navigation and UI elements */\n" +
-            "        .navbar, .toolbar, .searchbar, .tab-link,\n" +
-            "        .floating-button, .back-button, .hidden-print,\n" +
-            "        .no-print, button:not(.print-button),\n" +
-            "        .btn:not(.print-button) {\n" +
-            "            display: none !important;\n" +
-            "        }\n" +
-            "\n" +
-            "        /* Dark mode overrides */\n" +
-            "        .dark\\\\:bg-gray-800, .dark\\\\:bg-gray-700, .dark\\\\:bg-slate-900 {\n" +
-            "            background-color: white !important;\n" +
-            "        }\n" +
-            "\n" +
-            "        .dark\\\\:text-white, .dark\\\\:text-gray-300 {\n" +
-            "            color: black !important;\n" +
-            "        }\n" +
-            "    `;\n" +
-            "}\n" +
-            "\n" +
-            "// Apply the print styles\n" +
-            "printStyleElement.textContent = printStyles;\n" +
-            "document.head.appendChild(printStyleElement);\n" +
-            "\n" +
-            "// Hide elements that shouldn't be in print\n" +
-            "const hideSelectors = [\n" +
-            "    '.navbar', '.toolbar', '.searchbar', '.tab-link',\n" +
-            "    '.floating-button', '.back-button', '.no-print',\n" +
-            "    'button:not(.print-button)', '.btn:not(.print-button)'\n" +
-            "];\n" +
-            "\n" +
-            "hideSelectors.forEach(selector => {\n" +
-            "    const elements = document.querySelectorAll(selector);\n" +
-            "    elements.forEach(el => {\n" +
-            "        el.style.display = 'none';\n" +
-            "    });\n" +
+            "elementsToHide.forEach((el, index) => {\n" +
+            "    console.log('📄 Android: Hiding element ' + (index + 1) + ':', el.tagName, el.className);\n" +
+            "    el.style.setProperty('display', 'none', 'important');\n" +
             "});\n" +
             "\n" +
-            "// Apply print-friendly body styling\n" +
-            "document.body.style.backgroundColor = '#ffffff';\n" +
-            "document.body.style.color = '#000000';\n" +
-            "document.body.style.fontFamily = 'Arial, sans-serif';\n" +
+            "// Ensure body is visible and properly styled for PDF\n" +
+            "if (document.body) {\n" +
+            "    // Only apply minimal styling if body is completely hidden\n" +
+            "    const bodyStyle = window.getComputedStyle(document.body);\n" +
+            "    if (bodyStyle.display === 'none' || bodyStyle.visibility === 'hidden') {\n" +
+            "        console.log('⚠️ Android: Body was hidden, making it visible for PDF');\n" +
+            "        document.body.style.setProperty('display', 'block', 'important');\n" +
+            "        document.body.style.setProperty('visibility', 'visible', 'important');\n" +
+            "    }\n" +
             "\n" +
-            "console.log('✅ Android: Print styles applied successfully');\n";
+            "    // Ensure content is visible with basic print-friendly styling\n" +
+            "    document.body.style.setProperty('background-color', '#ffffff', 'important');\n" +
+            "    document.body.style.setProperty('color', '#000000', 'important');\n" +
+            "\n" +
+            "    console.log('✅ Android: Body styling applied for PDF generation');\n" +
+            "}\n" +
+            "\n" +
+            "// Force any dark mode elements to be visible in PDF\n" +
+            "const darkElements = document.querySelectorAll('[class*=\"dark:\"], .dark');\n" +
+            "darkElements.forEach(el => {\n" +
+            "    const computedStyle = window.getComputedStyle(el);\n" +
+            "    if (computedStyle.color === 'rgb(255, 255, 255)' || computedStyle.color === 'white') {\n" +
+            "        el.style.setProperty('color', '#000000', 'important');\n" +
+            "    }\n" +
+            "    if (computedStyle.backgroundColor === 'rgb(0, 0, 0)' || computedStyle.backgroundColor.includes('gray')) {\n" +
+            "        el.style.setProperty('background-color', '#ffffff', 'important');\n" +
+            "    }\n" +
+            "});\n" +
+            "\n" +
+            "console.log('✅ Android: Page prepared for PDF generation - existing styles preserved');\n";
 
         webView.evaluateJavascript(printStylesJS, result -> {
             if (result != null) {
@@ -333,5 +282,81 @@ public class PdfSharePlugin extends Plugin {
                 Log.e(TAG, "❌ Android: Error injecting print styles");
             }
         });
+    }
+
+    /**
+     * Restore page styles after PDF generation (internal method)
+     */
+    private void restorePageStyles(WebView webView) {
+        if (webView == null) {
+            Log.w(TAG, "⚠️ WebView not available for style restoration");
+            return;
+        }
+
+        new Handler(Looper.getMainLooper()).post(() -> {
+            try {
+                Log.d(TAG, "🔄 Android: Restoring page styles after PDF generation");
+
+                String restoreJS =
+                    "console.log('🔄 Android: Restoring page after PDF generation');\n" +
+                    "\n" +
+                    "// Restore .hidden-print elements to visible\n" +
+                    "const hiddenPrintElements = document.querySelectorAll('.hidden-print');\n" +
+                    "console.log('🔄 Android: Restoring ' + hiddenPrintElements.length + ' .hidden-print elements');\n" +
+                    "hiddenPrintElements.forEach((el, index) => {\n" +
+                    "    el.style.removeProperty('display');\n" +
+                    "    console.log('🔄 Android: Restored element ' + (index + 1) + ':', el.tagName, el.className);\n" +
+                    "});\n" +
+                    "\n" +
+                    "// Remove PDF-specific inline styles that were added\n" +
+                    "const allElements = document.querySelectorAll('*');\n" +
+                    "allElements.forEach(el => {\n" +
+                    "    // Only remove styles that we specifically added during PDF generation\n" +
+                    "    const style = el.style;\n" +
+                    "    \n" +
+                    "    // Remove forced white background if it was added for PDF\n" +
+                    "    if (style.backgroundColor === 'rgb(255, 255, 255)' && style.getPropertyPriority('background-color') === 'important') {\n" +
+                    "        el.style.removeProperty('background-color');\n" +
+                    "    }\n" +
+                    "    \n" +
+                    "    // Remove forced black text if it was added for PDF\n" +
+                    "    if (style.color === 'rgb(0, 0, 0)' && style.getPropertyPriority('color') === 'important') {\n" +
+                    "        el.style.removeProperty('color');\n" +
+                    "    }\n" +
+                    "    \n" +
+                    "    // Remove forced display/visibility if it was added for PDF\n" +
+                    "    if (style.getPropertyPriority('display') === 'important') {\n" +
+                    "        el.style.removeProperty('display');\n" +
+                    "    }\n" +
+                    "    if (style.getPropertyPriority('visibility') === 'important') {\n" +
+                    "        el.style.removeProperty('visibility');\n" +
+                    "    }\n" +
+                    "});\n" +
+                    "\n" +
+                    "console.log('✅ Android: Page styles restored successfully');\n";
+
+                webView.evaluateJavascript(restoreJS, result -> {
+                    Log.d(TAG, "✅ Android: Page styles restored successfully");
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Error restoring page styles", e);
+            }
+        });
+    }
+
+    /**
+     * Restore page to normal view after PDF generation (public method for manual calls)
+     */
+    @PluginMethod
+    public void restorePageAfterPDF(PluginCall call) {
+        WebView webView = bridge.getWebView();
+        if (webView == null) {
+            call.reject("WebView not available");
+            return;
+        }
+
+        restorePageStyles(webView);
+        call.resolve();
     }
 }
